@@ -13,7 +13,7 @@ from sql import SQLUser
 import keyboard
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 bot = Bot(token=config.BOT_TOKEN,) # proxy=proxy_url)
