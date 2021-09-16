@@ -76,4 +76,4 @@ class SQLUser(SQLighter):
     def upload_bonus(self, chat_id):
         """Получил бонус"""
         with self.connection:
-            return self.cursor.execute("UPDATE `user` SET `bonus` = TRUE WHERE `chat_id` = ?", (chat_id,))
+            return self.cursor.execute("UPDATE `user` SET `bonus` = 1 WHERE `chat_id` = ?", (chat_id,))
