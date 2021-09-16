@@ -25,3 +25,6 @@ cash.add(c1, c2, c3)
 cancel = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
 can = types.KeyboardButton(text='🚫 Отмена')
 cancel.add(can)
+
+
+2
