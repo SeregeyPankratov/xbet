@@ -17,10 +17,8 @@ o2 = types.KeyboardButton(text='🔝 Главное Меню')
 output_money.add(o1, o2)
 
 cash = types.InlineKeyboardMarkup(row_width=1)
-c1 = types.InlineKeyboardButton(text='💳 Банковская карта', callback_data='card')
-c2 = types.InlineKeyboardButton(text='🔶 Кошелек QIWI', callback_data='QIWI')
-c3 = types.InlineKeyboardButton(text='🔷 Логин БК', callback_data='BK')
-cash.add(c1, c2, c3)
+c1 = types.InlineKeyboardButton(text='💳 Kaspi Gold', callback_data='Kaspi')
+cash.add(c1)
 
 cancel = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
 can = types.KeyboardButton(text='🚫 Отмена')

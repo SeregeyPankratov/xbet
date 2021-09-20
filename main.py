@@ -20,13 +20,10 @@ bot = Bot(token=config.BOT_TOKEN,) # proxy=proxy_url)
 dp = Dispatcher(bot, storage=MemoryStorage())
 CHANEL_ID = '@kazinside_kz'
 DATE = datetime.datetime.now().strftime("%d-%m-%Y")
-TEMP = []
 
 
 class Output(StatesGroup):
-    card_number = State()
-    QIWI_number = State()
-    BK_number = State()
+    Kaspi_number = State()
     how_much = State()
 
 
@@ -94,38 +91,15 @@ async def inline_button(call: CallbackQuery):
                                         f'на этот канал 👇 \n✅ https://t.me/kazinside_kz \n⚡',
                                    disable_web_page_preview=True, parse_mode='html', reply_markup=keyboard.verify)
 
-    elif data == 'card':
-        name = SQLUser().get_name_user(chat_id)
-        text = f"⚠ Недостаточно денег на счету для снятия" \
-               f"\n\n💳  {name}, минимальный баланс для снятия должен составлять: 30.000 тенге (6.000₽)"
-        if check_money(chat_id):
-            await bot.send_message(chat_id, text='💳 Укажите номер карты', reply_markup=keyboard.cancel)
-            await Output.card_number.set()
-            TEMP.append('card_number')
-        else:
-            await bot.answer_callback_query(call.id, f'{text}', show_alert=True)
-
-    elif data == 'QIWI':
+    elif data == 'Kaspi':
         name = SQLUser().get_name_user(chat_id)
         text = f"⚠ Недостаточно денег на счету для снятия" \
                f"\n\n💳  {name}, минимальный баланс для снятия должен составлять: 30.000 тенге (6.000₽)"
         if check_money(chat_id):
             await bot.send_message(chat_id,
-                                   text="🔶 Укажите номер QIWI кошелька "
+                                   text="💳  Укажите номер Kaspi Gold "
                                         "\n<b>+77xxxxxxxxx</b>", parse_mode='html', reply_markup=keyboard.cancel)
-            await Output.QIWI_number.set()
-            TEMP.append('QIWI_number')
-        else:
-            await bot.answer_callback_query(call.id, f'{text}', show_alert=True)
-
-    elif data == 'BK':
-        name = SQLUser().get_name_user(chat_id)
-        text = f"⚠ Недостаточно денег на счету для снятия" \
-               f"\n\n💳  {name}, минимальный баланс для снятия должен составлять: 30.000 тенге (6.000₽)"
-        if check_money(chat_id):
-            await bot.send_message(chat_id, text='🔷 Укажите логин БК', reply_markup=keyboard.cancel)
-            await Output.BK_number.set()
-            TEMP.append('BK_number')
+            await Output.Kaspi_number.set()
         else:
             await bot.answer_callback_query(call.id, f'{text}', show_alert=True)
 
@@ -183,7 +157,7 @@ async def buttons(message: types.Message):
         await message.answer('🔝 Главное Меню', reply_markup=keyboard.start_menu)
 
     elif msg == '📤 Вывести':
-        await message.answer('💰 Выберите удобные для Вас варианты снятия денег:', reply_markup=keyboard.cash)
+        await message.answer('💰 Вывод денег: 👇', reply_markup=keyboard.cash)
 
     elif msg == '📊 Статистика':
         foto = os.path.join(config.TEMP_DIR, "1fee3ce9-0ccc-4ca8-b493-265a43e9f8db.jpg")
@@ -214,53 +188,24 @@ async def buttons(message: types.Message):
 @dp.message_handler(Text(equals='🚫 Отмена', ignore_case=True), state='*')
 async def cancel_handler(message: types.Message, state: FSMContext):
     await state.finish()
-    TEMP.clear()
     await message.answer('Действие отменено', reply_markup=keyboard.start_menu)
 
 
-# Получаем номер карты
-@dp.message_handler(content_types='text', state=Output.card_number)
-async def card_handler(message: types.Message, state: FSMContext):
-    card_number = message.text
-    msg = re.match(r'[0-9]{16}', card_number) and len(card_number) == 16
+# Получаем номер Kaspi
+@dp.message_handler(content_types='text', state=Output.Kaspi_number)
+async def Kaspi_handler(message: types.Message, state: FSMContext):
+    Kaspi_number = message.text
+    msg = re.match(r'[+77]{3}[0-9]{9}', Kaspi_number) and len(Kaspi_number) == 12
     if msg:
         money = SQLUser().get_balance(message.chat.id)
         await message.answer(f'Ваш баланс составляет <b>{money} тенге</b>'
                              f'\nУкажите количество для вывода', parse_mode='html')
         async with state.proxy() as data:
-            data["card_number"] = card_number
+            data["Kaspi_number"] = Kaspi_number
         await Output.how_much.set()
     else:
-        await message.answer(text='❌ Номер карты должен состоять из 16 цифр')
-
-
-# Получаем номер QIWI
-@dp.message_handler(content_types='text', state=Output.QIWI_number)
-async def QIWI_handler(message: types.Message, state: FSMContext):
-    QIWI_number = message.text
-    msg = re.match(r'[+77]{3}[0-9]{9}', QIWI_number) and len(QIWI_number) == 12
-    if msg:
-        money = SQLUser().get_balance(message.chat.id)
-        await message.answer(f'Ваш баланс составляет <b>{money} тенге</b>'
-                             f'\nУкажите количество для вывода', parse_mode='html')
-        async with state.proxy() as data:
-            data["QIWI_number"] = QIWI_number
-        await Output.how_much.set()
-    else:
-        await message.answer("❌ Укажите номер Qiwi кошелька "
+        await message.answer("💳  Укажите номер Kaspi Gold "
                              "\n<b>+77xxxxxxxxx</b>", parse_mode='html')
-
-
-# Получаем номер БК
-@dp.message_handler(content_types='text', state=Output.BK_number)
-async def BK_handler(message: types.Message, state: FSMContext):
-    BK_number = message.text
-    money = SQLUser().get_balance(message.chat.id)
-    await message.answer(f'Ваш баланс составляет <b>{money} тенге</b>'
-                         f'\nУкажите количество для вывода', parse_mode='html')
-    async with state.proxy() as data:
-        data["BK_number"] = BK_number
-    await Output.how_much.set()
 
 
 # Получаем количество для вывода
@@ -273,36 +218,25 @@ async def money_handler(message: types.Message, state: FSMContext):
         if int(how_money) <= money:
             user_name = SQLUser().get_name_user(message.chat.id)
             data = await state.get_data()
-            number = data.get(TEMP[-1])
-            vivod = sposob_vivoda(TEMP[-1])
+            number = data.get('Kaspi_number')
             await message.answer(text='✨ Ваш запрос отправлен❗'
-                                      '\nВ ближайшее время деньги поступят на указанный счет')
-            await bot.send_message(message.chat.id,
-                                   text=f'❗Вот такое сообщение будет \nприходить администратору❗'
-                                        f'\n\nПользователь {user_name} ({message.chat.id}) хочет вывести деньги '
-                                        f'в размере <b>{how_money} тенге</b>, {vivod} <b>{number}</b>',
-                                   parse_mode='html', reply_markup=keyboard.start_menu)
+                                      '\nВ ближайшее время деньги поступят на указанный счет'
+                                 , reply_markup=keyboard.start_menu)
+            await bot.send_message(config.ADMIN_ID,
+                                   text=f'\n\nПользователь {user_name} ({message.chat.id}) хочет вывести деньги '
+                                        f'в размере <b>{how_money} тенге</b>, на Kaspi Gold № <b>{number}</b>',
+                                   parse_mode='html')
             if SQLUser().get_bonus(message.chat.id) == 0:
                 await bot.send_message(message.chat.id, text='Пользователю надо выплатить 5000 тенге за регистрацию')
                 SQLUser().upload_bonus(message.chat.id)
             else:
                 pass
             SQLUser().upload_balance(chat_id=message.chat.id, balance=money - int(how_money))
-            TEMP.clear()
             await state.finish()
         else:
             await message.answer(text='В нулях ошиблись 😁')
     else:
         await message.answer(text='Укажите количество цифрами')
-
-
-def sposob_vivoda(info):
-    if info == 'card_number':
-        return 'на карту №'
-    elif info == 'QIWI_number':
-        return 'на кошелек Qiwi №'
-    elif info == 'BK_number':
-        return 'на логин БК - '
 
 
 # проверка подписки
