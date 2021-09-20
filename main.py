@@ -48,19 +48,21 @@ async def startup(message: types.Message):
         await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
     # если не зареган, и зашел по реф ссылке
     elif len(message.text) > 6:
-        TEMP.append(message.text[8:])
-        if SQLUser().get_referal_to_day(DATE, TEMP[-1]) < 99:
+        ref_user = message.text[8:]
+        if SQLUser().get_referal_to_day(DATE, ref_user) < 99:
             await message.answer(text=text, disable_web_page_preview=True, parse_mode='html',
                                  reply_markup=keyboard.verify)
+            SQLUser().add_user(chat_id, message.from_user.first_name, DATE, ref_user)
 
         else:
             await bot.send_message(chat_id, text=f'❌ По этой ссылке сегодня уже зарегистрировалось 100 человек.'
                                                  f'\nПовторите регистрацию завтра')
-            TEMP.clear()
+
     # если не зареган, и зашел без реф ссылки
     else:
         await message.answer(text=text, disable_web_page_preview=True, parse_mode='html',
                              reply_markup=keyboard.verify)
+        SQLUser().add_user(chat_id, message.from_user.first_name, DATE, ref_user=0)
 
 
 # Обработка инлайн кнопок
@@ -70,18 +72,22 @@ async def inline_button(call: CallbackQuery):
     chat_id = call.from_user.id
     if data == 'verify':
         if check_sub_channel(await bot.get_chat_member(chat_id=CHANEL_ID, user_id=chat_id)):
-            if TEMP:
-                user_name = SQLUser().get_name_user(TEMP[-1])
-                await bot.send_message(chat_id, text=f'✅ Вы были приглашены пользователем {user_name}.')
-                await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
-                SQLUser().add_user(chat_id, call.from_user.first_name, DATE, ref_user=TEMP[-1])
-                await bot.send_message(TEMP[-1], text=f'✅ Вы пригласили пользователя, Вам начислено 500 тенге.')
-                SQLUser().referal_update(TEMP[-1])
-                TEMP.clear()
+            ref_user = int(SQLUser().get_ref_user(chat_id))
+            if ref_user != chat_id:
+                if ref_user > 0:
+                    user_name = SQLUser().get_name_user(ref_user)
+                    await bot.send_message(chat_id, text=f'✅ Вы были приглашены пользователем {user_name}.')
+                    await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
+                    await bot.send_message(ref_user, text=f'✅ Вы пригласили пользователя, Вам начислено 500 тенге.')
+                    SQLUser().referal_update(ref_user)
+                else:
+                    await bot.send_message(chat_id, text=f'✅ Вы подписаны на канал!')
+                    await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
+
             else:
                 await bot.send_message(chat_id, text=f'✅ Вы подписаны на канал!')
                 await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
-                SQLUser().add_user(chat_id, call.from_user.first_name, DATE)
+
         else:
             await bot.send_message(chat_id,
                                    text=f'Чтобы вывести данные бонусы необходимо <b>оформить подписку</b> '
