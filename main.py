@@ -16,7 +16,7 @@ import keyboard
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-bot = Bot(token=config.BOT_TOKEN,) # proxy=proxy_url)
+bot = Bot(token=config.BOT_TOKEN,)
 dp = Dispatcher(bot, storage=MemoryStorage())
 CHANEL_ID = '@kazinside_kz'
 DATE = datetime.datetime.now().strftime("%d-%m-%Y")

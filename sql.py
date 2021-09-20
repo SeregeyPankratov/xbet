@@ -70,7 +70,8 @@ class SQLUser(SQLighter):
     def get_referal_to_day(self, date, ref_user):
         """Получаем количество зарегистрированных рефералов"""
         with self.connection:
-            select = self.cursor.execute("SELECT `id` FROM `user` WHERE `date`=? AND `ref_user`=?", (date, ref_user)).fetchall()
+            select = self.cursor.execute("SELECT `id` FROM `user` WHERE `date`=? AND `ref_user`=?",
+                                         (date, ref_user)).fetchall()
             return len(select)
 
     def upload_balance(self, chat_id, balance):
