@@ -4,7 +4,7 @@ from aiogram.dispatcher.filters import Text, CommandStart
 from aiogram.types import CallbackQuery
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.dispatcher import FSMContext
-import datetime
+from datetime import datetime, timedelta
 import logging
 import config
 import os
@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=config.BOT_TOKEN,)
 dp = Dispatcher(bot, storage=MemoryStorage())
 CHANEL_ID = '@kazinside_kz'
-DATE = datetime.datetime.now().strftime("%d-%m-%Y")
 
 
 class Output(StatesGroup):
@@ -31,6 +30,7 @@ class Output(StatesGroup):
 @dp.message_handler(CommandStart())
 async def startup(message: types.Message):
     chat_id = message.from_user.id
+    date = (datetime.now() + timedelta(hours=6)).strftime("%d.%m.%Y")
     text = f'''⚡ Поздравляю, {message.from_user.first_name}
 
 ✅ Вы получаете <b>5.000 тенге (900₽)</b> бонусом
@@ -40,26 +40,27 @@ async def startup(message: types.Message):
 ✅ https://t.me/kazinside_kz
 
 ⚡'''
+    if message.from_user.is_bot:
+        await message.answer(text='😡 Ботам тут не место')
     # если зарегистрирован
-    if SQLUser().user_exists(chat_id):
+    elif SQLUser().user_exists(chat_id):
         await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
     # если не зареган, и зашел по реф ссылке
     elif len(message.text) > 6:
         ref_user = message.text[8:]
-        if SQLUser().get_referal_to_day(DATE, ref_user) < 99:
+        if SQLUser().get_referal_to_day(date, ref_user) < 99:
+            SQLUser().add_user(chat_id, message.from_user.first_name, date, ref_user)
             await message.answer(text=text, disable_web_page_preview=True, parse_mode='html',
                                  reply_markup=keyboard.verify)
-            SQLUser().add_user(chat_id, message.from_user.first_name, DATE, ref_user)
-
         else:
             await bot.send_message(chat_id, text=f'❌ По этой ссылке сегодня уже зарегистрировалось 100 человек.'
                                                  f'\nПовторите регистрацию завтра')
 
     # если не зареган, и зашел без реф ссылки
     else:
+        SQLUser().add_user(chat_id, message.from_user.first_name, date, ref_user=0)
         await message.answer(text=text, disable_web_page_preview=True, parse_mode='html',
                              reply_markup=keyboard.verify)
-        SQLUser().add_user(chat_id, message.from_user.first_name, DATE, ref_user=0)
 
 
 # Обработка инлайн кнопок
@@ -69,21 +70,25 @@ async def inline_button(call: CallbackQuery):
     chat_id = call.from_user.id
     if data == 'verify':
         if check_sub_channel(await bot.get_chat_member(chat_id=CHANEL_ID, user_id=chat_id)):
-            ref_user = int(SQLUser().get_ref_user(chat_id))
-            if ref_user != chat_id:
-                if ref_user > 0:
-                    user_name = SQLUser().get_name_user(ref_user)
-                    await bot.send_message(chat_id, text=f'✅ Вы были приглашены пользователем {user_name}.')
-                    await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
-                    await bot.send_message(ref_user, text=f'✅ Вы пригласили пользователя, Вам начислено 500 тенге.')
-                    SQLUser().referal_update(ref_user)
+            if SQLUser().user_exists(chat_id):
+                ref_user = int(SQLUser().get_ref_user(chat_id))
+                if ref_user != chat_id:
+                    if ref_user > 0:
+                        user_name = SQLUser().get_name_user(ref_user)
+                        await bot.send_message(chat_id, text=f'✅ Вы были приглашены пользователем {user_name}.')
+                        await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
+                        await bot.send_message(ref_user, text=f'✅ Вы пригласили пользователя, Вам начислено 500 тенге.')
+                        SQLUser().referal_update(ref_user)
+                    else:
+                        await bot.send_message(chat_id, text=f'✅ Вы подписаны на канал!')
+                        await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
+
                 else:
                     await bot.send_message(chat_id, text=f'✅ Вы подписаны на канал!')
                     await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
-
             else:
-                await bot.send_message(chat_id, text=f'✅ Вы подписаны на канал!')
-                await bot.send_message(chat_id, text=f'🔝 Главное Меню', reply_markup=keyboard.start_menu)
+                await bot.send_message(chat_id, text=f'С вашим акаунтом чтото не так! 😱 '
+                                                     f'нажмите /start')
 
         else:
             await bot.send_message(chat_id,
@@ -160,12 +165,13 @@ async def buttons(message: types.Message):
         await message.answer('💰 Вывод денег: 👇', reply_markup=keyboard.cash)
 
     elif msg == '📊 Статистика':
+        date = (datetime.now() + timedelta(hours=6)).strftime("%d.%m.%Y")
         foto = os.path.join(config.TEMP_DIR, "1fee3ce9-0ccc-4ca8-b493-265a43e9f8db.jpg")
         url = f'https://t.me/sp_demo_bot?start=r{message.chat.id}'
         balance = SQLUser().get_balance(message.chat.id)
         referal = SQLUser().get_referal(message.chat.id)[-1][-1]
         all_user = SQLUser().get_all_user()
-        user_to_day = SQLUser().get_user_to_day(DATE)
+        user_to_day = SQLUser().get_user_to_day(date)
         await bot.send_photo(message.chat.id, photo=open(foto, "rb"), caption=f"""♻ Статистика:
 
 👨🏼‍💻 Вы пригласили <b>{referal}</b> человек
@@ -249,7 +255,7 @@ def check_sub_channel(chat_member):
 
 # проверка набрал ли юзер баланс для вывода
 def check_money(chat_id):
-    if SQLUser().get_balance(chat_id) > 30000:
+    if SQLUser().get_balance(chat_id) > 29999:
         return True
     else:
         return False

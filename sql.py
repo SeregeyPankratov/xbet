@@ -68,7 +68,7 @@ class SQLUser(SQLighter):
             return len(select)
 
     def get_referal_to_day(self, date, ref_user):
-        """Получаем количество зарегистрированных рефералов"""
+        """Получаем количество зарегистрированных рефералов в день"""
         with self.connection:
             select = self.cursor.execute("SELECT `id` FROM `user` WHERE `date`=? AND `ref_user`=?",
                                          (date, ref_user)).fetchall()
