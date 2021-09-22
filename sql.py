@@ -83,3 +83,13 @@ class SQLUser(SQLighter):
         """Получил бонус"""
         with self.connection:
             return self.cursor.execute("UPDATE `user` SET `bonus` = 1 WHERE `chat_id` = ?", (chat_id,))
+
+    def referal_real(self, chat_id):
+        """Сколько рефералов в базе"""
+        with self.connection:
+            select = self.cursor.execute('SELECT * FROM `user` WHERE `ref_user` = ?', (chat_id,)).fetchall()
+            return len(select)
+
+    def corect(self, corect, chat_id):
+        with self.connection:
+            return self.cursor.execute("UPDATE `user` SET `corect` = ? WHERE `chat_id` = ?", (corect, chat_id,))

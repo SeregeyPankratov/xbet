@@ -20,6 +20,11 @@ bot = Bot(token=config.BOT_TOKEN,)
 dp = Dispatcher(bot, storage=MemoryStorage())
 CHANEL_ID = '@kazinside_kz'
 
+TEXT = """🤪 Как вы задолбали со своим накручиванием 🤪 
+Читай правила 👇"""
+
+EMODZI = '☠'
+
 
 class Output(StatesGroup):
     Kaspi_number = State()
@@ -46,7 +51,7 @@ async def startup(message: types.Message):
     elif SQLUser().user_exists(chat_id):
         await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
     # если не зареган, и зашел по реф ссылке
-    elif len(message.text) > 6:
+    elif len(message.text) > 6 and message.text[7] == 'r':
         ref_user = message.text[8:]
         if SQLUser().get_referal_to_day(date, ref_user) < 99:
             SQLUser().add_user(chat_id, message.from_user.first_name, date, ref_user)
@@ -100,7 +105,10 @@ async def inline_button(call: CallbackQuery):
         name = SQLUser().get_name_user(chat_id)
         text = f"⚠ Недостаточно денег на счету для снятия" \
                f"\n\n💳  {name}, минимальный баланс для снятия должен составлять: 30.000 тенге (6.000₽)"
-        if check_money(chat_id):
+        if corekt_referal(chat_id):
+            await bot.send_message(chat_id, EMODZI)
+            await bot.send_message(chat_id, TEXT)
+        elif check_money(chat_id):
             await bot.send_message(chat_id,
                                    text="💳  Укажите номер Kaspi Gold "
                                         "\n<b>+77xxxxxxxxx</b>", parse_mode='html', reply_markup=keyboard.cancel)
@@ -115,7 +123,7 @@ async def buttons(message: types.Message):
     msg = message.text
     if msg == '👨🏼‍💻 Заработать':
         foto = os.path.join(config.TEMP_DIR, "8094aba2-d20d-46ad-a7b0-f5e10de5cd1b.jpg")
-        url = f'https://t.me/sp_demo_bot?start=r{message.chat.id}'
+        url = f'https://t.me/Kazinside_rabota_bot=r{message.chat.id}'
         user_name = SQLUser().get_name_user(message.chat.id)
         await bot.send_photo(message.chat.id, photo=open(foto, "rb"), caption=f"""Привет {user_name}
         
@@ -143,36 +151,48 @@ async def buttons(message: types.Message):
 """, parse_mode='html')
 
     elif msg == '💳 Мой баланс':
-        user_name = SQLUser().get_name_user(message.chat.id)
-        balance = SQLUser().get_balance(message.chat.id)
-        foto = os.path.join(config.TEMP_DIR, "47c7a006-3159-4614-a43c-32d1510dda7a.jpg")
-        bonus = SQLUser().get_bonus(message.chat.id)
-        if bonus == 0:
-            await bot.send_photo(message.chat.id, photo=open(foto, "rb"),
-                                 caption=f"""💳 {user_name}, ваш баланс составляет: {balance} тенге
-                             
-<i>📍 Ваши бонусные 5000 тенге (900₽) (за оформлении подписки) будут прибавлены при снятии денег!</i>""",
-                                 parse_mode='html', reply_markup=keyboard.output_money)
+        if corekt_referal(message.chat.id):
+            await message.answer(EMODZI)
+            await message.answer(TEXT)
         else:
-            await bot.send_photo(message.chat.id, photo=open(foto, "rb"),
-                                 caption=f"""💳 {user_name}, ваш баланс составляет: {balance} тенге""",
-                                 parse_mode='html', reply_markup=keyboard.output_money)
+            user_name = SQLUser().get_name_user(message.chat.id)
+            balance = SQLUser().get_balance(message.chat.id)
+            foto = os.path.join(config.TEMP_DIR, "47c7a006-3159-4614-a43c-32d1510dda7a.jpg")
+            bonus = SQLUser().get_bonus(message.chat.id)
+            if bonus == 0:
+                await bot.send_photo(message.chat.id, photo=open(foto, "rb"),
+                                     caption=f"""💳 {user_name}, ваш баланс составляет: {balance} тенге
+                                 
+<i>📍 Ваши бонусные 5000 тенге (900₽) (за оформлении подписки) будут прибавлены при снятии денег!</i>""",
+                                     parse_mode='html', reply_markup=keyboard.output_money)
+            else:
+                await bot.send_photo(message.chat.id, photo=open(foto, "rb"),
+                                     caption=f"""💳 {user_name}, ваш баланс составляет: {balance} тенге""",
+                                     parse_mode='html', reply_markup=keyboard.output_money)
 
     elif msg == '🔝 Главное Меню':
         await message.answer('🔝 Главное Меню', reply_markup=keyboard.start_menu)
 
     elif msg == '📤 Вывести':
-        await message.answer('💰 Вывод денег: 👇', reply_markup=keyboard.cash)
+        if corekt_referal(message.chat.id):
+            await message.answer(EMODZI)
+            await message.answer(TEXT)
+        else:
+            await message.answer('💰 Вывод денег: 👇', reply_markup=keyboard.cash)
 
     elif msg == '📊 Статистика':
-        date = (datetime.now() + timedelta(hours=6)).strftime("%d.%m.%Y")
-        foto = os.path.join(config.TEMP_DIR, "1fee3ce9-0ccc-4ca8-b493-265a43e9f8db.jpg")
-        url = f'https://t.me/sp_demo_bot?start=r{message.chat.id}'
-        balance = SQLUser().get_balance(message.chat.id)
-        referal = SQLUser().get_referal(message.chat.id)[-1][-1]
-        all_user = SQLUser().get_all_user()
-        user_to_day = SQLUser().get_user_to_day(date)
-        await bot.send_photo(message.chat.id, photo=open(foto, "rb"), caption=f"""♻ Статистика:
+        if corekt_referal(message.chat.id):
+            await message.answer(EMODZI)
+            await message.answer(TEXT)
+        else:
+            date = (datetime.now() + timedelta(hours=6)).strftime("%d.%m.%Y")
+            foto = os.path.join(config.TEMP_DIR, "1fee3ce9-0ccc-4ca8-b493-265a43e9f8db.jpg")
+            url = f'https://t.me/Kazinside_rabota_bot?start=r{message.chat.id}'
+            balance = SQLUser().get_balance(message.chat.id)
+            referal = int(SQLUser().get_referal(message.chat.id)[-1][-1])
+            all_user = SQLUser().get_all_user()
+            user_to_day = SQLUser().get_user_to_day(date)
+            await bot.send_photo(message.chat.id, photo=open(foto, "rb"), caption=f"""♻ Статистика:
 
 👨🏼‍💻 Вы пригласили <b>{referal}</b> человек
 💸 Ваш баланс: <b>{balance}</b> тенге
@@ -188,6 +208,16 @@ async def buttons(message: types.Message):
 <i>Вы отправили сообщение напрямую в чат бота, или структура меню была изменена Админом.</i>
 
 ℹ Не отправляйте прямых сообщений боту или обновите Меню, нажав /start""", parse_mode='html')
+
+
+def corekt_referal(chat_id):
+    corect = SQLUser().referal_real(chat_id)
+    referal = int(SQLUser().get_referal(chat_id)[-1][-1])
+    SQLUser().corect(corect, chat_id)
+    if referal > corect:
+        return True
+    else:
+        return False
 
 
 # Отмена, убираем все состояния
