@@ -12,23 +12,24 @@ import re
 from sql import SQLUser
 import keyboard
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-bot = Bot(token=config.BOT_TOKEN,)
+bot = Bot(token=config.BOT_TOKEN, )
 dp = Dispatcher(bot, storage=MemoryStorage())
 CHANEL_ID = '@kazinside_kz'
 
-TEXT = """🤪 Как вы задолбали со своим накручиванием 🤪 
-Читай правила 👇"""
+TEXT = """⛔ Накрутка реферало ⛔ 
+⛔ запрещена ⛔
+Читайте правила 👇"""
 
 EMODZI = '☠'
 
 
 class Output(StatesGroup):
-    Kaspi_number = State()
     how_much = State()
+    xbet = State()
+    url = State()
 
 
 # Приветствие
@@ -68,6 +69,23 @@ async def startup(message: types.Message):
                              reply_markup=keyboard.verify)
 
 
+# изменяем url для регистрации
+@dp.message_handler(commands=['url'])
+async def change_url(message: types.Message):
+    await message.answer('Укажите новую ссылку')
+    await Output.url.set()
+
+
+# Получаем новую сслку
+@dp.message_handler(content_types='text', state=Output.url)
+async def url_handler(message: types.Message, state: FSMContext):
+    url = message.text
+    file = os.path.join(config.TEMP_DIR, "bit.txt")
+    open(file, 'w', encoding='UTF-8').write(url)
+    await message.answer('Ссылка успешно изменена')
+    await state.finish()
+
+
 # Обработка инлайн кнопок
 @dp.callback_query_handler(lambda call: call.data)
 async def inline_button(call: CallbackQuery):
@@ -101,7 +119,7 @@ async def inline_button(call: CallbackQuery):
                                         f'на этот канал 👇 \n✅ https://t.me/kazinside_kz \n⚡',
                                    disable_web_page_preview=True, parse_mode='html', reply_markup=keyboard.verify)
 
-    elif data == 'Kaspi':
+    elif data == 'Login':
         name = SQLUser().get_name_user(chat_id)
         text = f"⚠ Недостаточно денег на счету для снятия" \
                f"\n\n💳  {name}, минимальный баланс для снятия должен составлять: 30.000 тенге (6.000₽)"
@@ -110,9 +128,8 @@ async def inline_button(call: CallbackQuery):
             await bot.send_message(chat_id, TEXT)
         elif check_money(chat_id):
             await bot.send_message(chat_id,
-                                   text="💳  Укажите номер Kaspi Gold "
-                                        "\n<b>+77xxxxxxxxx</b>", parse_mode='html', reply_markup=keyboard.cancel)
-            await Output.Kaspi_number.set()
+                                   text="💳  Укажите Логин Xbet", reply_markup=keyboard.cancel)
+            await Output.xbet.set()
         else:
             await bot.answer_callback_query(call.id, f'{text}', show_alert=True)
 
@@ -174,11 +191,29 @@ async def buttons(message: types.Message):
         await message.answer('🔝 Главное Меню', reply_markup=keyboard.start_menu)
 
     elif msg == '📤 Вывести':
+        file = os.path.join(config.TEMP_DIR, "bit.txt")
+        url_login = open(file, 'r', encoding='UTF-8').read()
+        text = f"""✨ Поздравляю Вас ✨
+Остался последний шаг 
+для вывода денег ✊🏻🎁💰
+Надо зарегистрироваться по ссылке 👇
+
+<b>{url_login}</b> 
+
+Указать промокод: <b>KAZINSIDE</b> 
+
+<i>Пройти полную Идентификацию (заполнить анкетные данные, загрузить необходимые документы) 
+Связаться со службой поддержки, для завершения полной регистрации</i>
+
+В общем вы получите 30'000KZT, 
+10'000 поступят на основной счёт, 20'000KZT на бонусный 
+После завершения регистрации напишите логин, и ожидайте пополнения 🤑🔥"""
+
         if corekt_referal(message.chat.id):
             await message.answer(EMODZI)
             await message.answer(TEXT)
         else:
-            await message.answer('💰 Вывод денег: 👇', reply_markup=keyboard.cash)
+            await message.answer(text, parse_mode='html', reply_markup=keyboard.cash)
 
     elif msg == '📊 Статистика':
         if corekt_referal(message.chat.id):
@@ -227,21 +262,20 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     await message.answer('Действие отменено', reply_markup=keyboard.start_menu)
 
 
-# Получаем номер Kaspi
-@dp.message_handler(content_types='text', state=Output.Kaspi_number)
-async def Kaspi_handler(message: types.Message, state: FSMContext):
-    Kaspi_number = message.text
-    msg = re.match(r'[+77]{3}[0-9]{9}', Kaspi_number) and len(Kaspi_number) == 12
+# Получаем логин БК
+@dp.message_handler(content_types='text', state=Output.xbet)
+async def login_handler(message: types.Message, state: FSMContext):
+    login = message.text
+    msg = re.match(r'[0-9]', login)
     if msg:
         money = SQLUser().get_balance(message.chat.id)
         await message.answer(f'Ваш баланс составляет <b>{money} тенге</b>'
                              f'\nУкажите количество для вывода', parse_mode='html')
         async with state.proxy() as data:
-            data["Kaspi_number"] = Kaspi_number
+            data["login"] = login
         await Output.how_much.set()
     else:
-        await message.answer("💳  Укажите номер Kaspi Gold "
-                             "\n<b>+77xxxxxxxxx</b>", parse_mode='html')
+        await message.answer("💳  Укажите Логин Xbet цифрами")
 
 
 # Получаем количество для вывода
@@ -254,13 +288,13 @@ async def money_handler(message: types.Message, state: FSMContext):
         if int(how_money) <= money:
             user_name = SQLUser().get_name_user(message.chat.id)
             data = await state.get_data()
-            number = data.get('Kaspi_number')
+            number = data.get('login')
             await message.answer(text='✨ Ваш запрос отправлен❗'
-                                      '\nВ ближайшее время деньги поступят на указанный счет'
-                                 , reply_markup=keyboard.start_menu)
-            await bot.send_message(config.ADMIN_ID,
+                                      '\nВ ближайшее время деньги поступят на указанный счет',
+                                 reply_markup=keyboard.start_menu)
+            await bot.send_message(message.chat.id,
                                    text=f'\n\nПользователь {user_name} ({message.chat.id}) хочет вывести деньги '
-                                        f'в размере <b>{how_money} тенге</b>, на Kaspi Gold № <b>{number}</b>',
+                                        f'в размере <b>{how_money} тенге</b>, на Логин Xbet № <b>{number}</b>',
                                    parse_mode='html')
             if SQLUser().get_bonus(message.chat.id) == 0:
                 await bot.send_message(message.chat.id, text='Пользователю надо выплатить 5000 тенге за регистрацию')

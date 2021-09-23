@@ -17,7 +17,7 @@ o2 = types.KeyboardButton(text='🔝 Главное Меню')
 output_money.add(o1, o2)
 
 cash = types.InlineKeyboardMarkup(row_width=1)
-c1 = types.InlineKeyboardButton(text='💳 Kaspi Gold', callback_data='Kaspi')
+c1 = types.InlineKeyboardButton(text='💳 Логин Xbet', callback_data='Login')
 cash.add(c1)
 
 cancel = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
