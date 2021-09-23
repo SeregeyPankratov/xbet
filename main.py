@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 import logging
 import config
 import os
-import re
 from sql import SQLUser
 import keyboard
 
