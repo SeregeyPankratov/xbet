@@ -19,9 +19,8 @@ bot = Bot(token=config.BOT_TOKEN, )
 dp = Dispatcher(bot, storage=MemoryStorage())
 CHANEL_ID = '@kazinside_kz'
 
-TEXT = """⛔ Накрутка реферало ⛔ 
-⛔ запрещена ⛔
-Читайте правила 👇"""
+TEXT = """⛔ Ваш акаунт заблокирован
+за нарушения правил ⛔"""
 
 EMODZI = '☠'
 
@@ -72,7 +71,7 @@ async def startup(message: types.Message):
 # изменяем url для регистрации
 @dp.message_handler(commands=['url'])
 async def change_url(message: types.Message):
-    await message.answer('Укажите новую ссылку')
+    await message.answer('Укажите новую ссылку', reply_markup=keyboard.cancel)
     await Output.url.set()
 
 
@@ -82,7 +81,7 @@ async def url_handler(message: types.Message, state: FSMContext):
     url = message.text
     file = os.path.join(config.TEMP_DIR, "bit.txt")
     open(file, 'w', encoding='UTF-8').write(url)
-    await message.answer('Ссылка успешно изменена')
+    await message.answer('Ссылка успешно изменена', reply_markup=keyboard.start_menu)
     await state.finish()
 
 
@@ -120,18 +119,13 @@ async def inline_button(call: CallbackQuery):
                                    disable_web_page_preview=True, parse_mode='html', reply_markup=keyboard.verify)
 
     elif data == 'Login':
-        name = SQLUser().get_name_user(chat_id)
-        text = f"⚠ Недостаточно денег на счету для снятия" \
-               f"\n\n💳  {name}, минимальный баланс для снятия должен составлять: 30.000 тенге (6.000₽)"
         if corekt_referal(chat_id):
             await bot.send_message(chat_id, EMODZI)
             await bot.send_message(chat_id, TEXT)
-        elif check_money(chat_id):
+        else:
             await bot.send_message(chat_id,
                                    text="💳  Укажите Логин Xbet", reply_markup=keyboard.cancel)
             await Output.xbet.set()
-        else:
-            await bot.answer_callback_query(call.id, f'{text}', show_alert=True)
 
 
 # обработка кнопок
@@ -193,6 +187,9 @@ async def buttons(message: types.Message):
     elif msg == '📤 Вывести':
         file = os.path.join(config.TEMP_DIR, "bit.txt")
         url_login = open(file, 'r', encoding='UTF-8').read()
+        name = SQLUser().get_name_user(message.chat.id)
+        text2 = f"⚠ Недостаточно денег на счету для снятия" \
+                f"\n\n💳  {name}, минимальный баланс для снятия должен составлять: 30.000 тенге (6.000₽)"
         text = f"""✨ Поздравляю Вас ✨
 Остался последний шаг 
 для вывода денег ✊🏻🎁💰
@@ -208,12 +205,14 @@ async def buttons(message: types.Message):
 В общем вы получите 30'000KZT, 
 10'000 поступят на основной счёт, 20'000KZT на бонусный 
 После завершения регистрации напишите логин, и ожидайте пополнения 🤑🔥"""
-
-        if corekt_referal(message.chat.id):
-            await message.answer(EMODZI)
-            await message.answer(TEXT)
+        if check_money(message.chat.id):
+            if corekt_referal(message.chat.id):
+                await message.answer(EMODZI)
+                await message.answer(TEXT)
+            else:
+                await message.answer(text, parse_mode='html', reply_markup=keyboard.cash)
         else:
-            await message.answer(text, parse_mode='html', reply_markup=keyboard.cash)
+            await message.answer(f'{text2}')
 
     elif msg == '📊 Статистика':
         if corekt_referal(message.chat.id):
@@ -262,12 +261,11 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     await message.answer('Действие отменено', reply_markup=keyboard.start_menu)
 
 
-# Получаем логин БК
+# Получаем логин Xbet
 @dp.message_handler(content_types='text', state=Output.xbet)
 async def login_handler(message: types.Message, state: FSMContext):
     login = message.text
-    msg = re.match(r'[0-9]', login)
-    if msg:
+    if checkstring(login):
         money = SQLUser().get_balance(message.chat.id)
         await message.answer(f'Ваш баланс составляет <b>{money} тенге</b>'
                              f'\nУкажите количество для вывода', parse_mode='html')
@@ -283,8 +281,7 @@ async def login_handler(message: types.Message, state: FSMContext):
 async def money_handler(message: types.Message, state: FSMContext):
     how_money = message.text
     money = SQLUser().get_balance(message.chat.id)
-    msg = re.match(r'[0-9]', how_money)
-    if msg:
+    if checkstring(how_money):
         if int(how_money) <= money:
             user_name = SQLUser().get_name_user(message.chat.id)
             data = await state.get_data()
@@ -292,7 +289,7 @@ async def money_handler(message: types.Message, state: FSMContext):
             await message.answer(text='✨ Ваш запрос отправлен❗'
                                       '\nВ ближайшее время деньги поступят на указанный счет',
                                  reply_markup=keyboard.start_menu)
-            await bot.send_message(message.chat.id,
+            await bot.send_message(config.ADMIN_ID,
                                    text=f'\n\nПользователь {user_name} ({message.chat.id}) хочет вывести деньги '
                                         f'в размере <b>{how_money} тенге</b>, на Логин Xbet № <b>{number}</b>',
                                    parse_mode='html')
@@ -320,6 +317,18 @@ def check_sub_channel(chat_member):
 # проверка набрал ли юзер баланс для вывода
 def check_money(chat_id):
     if SQLUser().get_balance(chat_id) > 29999:
+        return True
+    else:
+        return False
+
+
+def checkstring(x, etalon="1234567890"):
+    flag = True
+    for val in x:
+        if not(val in etalon):
+            flag = False
+            break
+    if flag:
         return True
     else:
         return False

@@ -8,7 +8,7 @@ a4 = types.KeyboardButton(text='📊 Статистика')
 start_menu.add(a1, a2, a3, a4)
 
 verify = types.InlineKeyboardMarkup(row_width=1)
-v1 = types.InlineKeyboardButton(text='✅ Проверить', callback_data='verify')
+v1 = types.InlineKeyboardButton(text='✅ Проверить подписку', callback_data='verify')
 verify.add(v1)
 
 output_money = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
