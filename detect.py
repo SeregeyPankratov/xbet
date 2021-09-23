@@ -38,5 +38,6 @@ class SQLUser(SQLighter):
 no = SQLUser().new()
 
 print(no)
+print(len(no))
 
 
