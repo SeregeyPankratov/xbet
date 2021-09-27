@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters import Text, CommandStart
@@ -30,6 +31,7 @@ class Output(StatesGroup):
     url = State()
     user = State()
     message = State()
+    message_all_user = State()
 
 
 # Приветствие
@@ -51,8 +53,7 @@ async def startup(message: types.Message):
     # если зарегистрирован
     elif SQLUser().user_exists(chat_id):
         if chat_id == int(config.ADMIN_ID):
-            keyboard.start_menu.add(keyboard.a5, keyboard.a6, keyboard.a7)
-            await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
+            await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_admin)
         else:
             await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
     # если не зареган, и зашел по реф ссылке
@@ -170,7 +171,10 @@ async def buttons(message: types.Message):
                                      parse_mode='html', reply_markup=keyboard.output_money)
 
     elif msg == '🔝 Главное Меню':
-        await message.answer('🔝 Главное Меню', reply_markup=keyboard.start_menu)
+        if message.from_user.id == int(config.ADMIN_ID):
+            await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_admin)
+        else:
+            await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
 
     elif msg == '📤 Вывести':
         file = os.path.join(config.TEMP_DIR, "bit.txt")
@@ -225,16 +229,16 @@ async def buttons(message: types.Message):
 {url}""", parse_mode='html')
 
     elif msg == '👤 Юзеру':
-        await message.answer('Укажите ID пользователя, которому нужно отправить сообщение',
+        await message.answer('✒ Укажите ID пользователя, которому нужно отправить сообщение',
                              reply_markup=keyboard.cancel)
         await Output.user.set()
 
     elif msg == '👥 Всем':
-        all_user = SQLUser().get_chat_id_all_user()
-        print(all_user)
+        await message.answer('✒ Введите текст для рассылки', reply_markup=keyboard.cancel)
+        await Output.message_all_user.set()
 
     elif msg == '🚩 Изменить ссылку':
-        await message.answer('Укажите новую ссылку', reply_markup=keyboard.cancel)
+        await message.answer('✒ Укажите новую ссылку', reply_markup=keyboard.cancel)
         await Output.url.set()
 
     else:
@@ -249,7 +253,10 @@ async def buttons(message: types.Message):
 @dp.message_handler(Text(equals='🚫 Отмена', ignore_case=True), state='*')
 async def cancel_handler(message: types.Message, state: FSMContext):
     await state.finish()
-    await message.answer('Действие отменено', reply_markup=keyboard.start_menu)
+    if message.from_user.id == int(config.ADMIN_ID):
+        await message.answer(text='❌ Действие отменено', reply_markup=keyboard.start_admin)
+    else:
+        await message.answer(text='❌ Действие отменено', reply_markup=keyboard.start_menu)
 
 
 # Получаем новую сслку
@@ -258,7 +265,7 @@ async def url_handler(message: types.Message, state: FSMContext):
     url = message.text
     file = os.path.join(config.TEMP_DIR, "bit.txt")
     open(file, 'w', encoding='UTF-8').write(url)
-    await message.answer('Ссылка успешно изменена', reply_markup=keyboard.start_menu)
+    await message.answer('✅ Ссылка успешно изменена', reply_markup=keyboard.start_admin)
     await state.finish()
 
 
@@ -268,14 +275,14 @@ async def user_handler(message: types.Message, state: FSMContext):
     user_id = message.text
     if checkstring(user_id):
         if SQLUser().user_exists(user_id):
-            await message.answer('Напишите сообщение для отправки пользователю', reply_markup=keyboard.cancel)
+            await message.answer('✒ Напишите сообщение для отправки пользователю', reply_markup=keyboard.cancel)
             async with state.proxy() as data:
                 data["user_id"] = user_id
             await Output.message.set()
         else:
-            await message.answer('В базе нет пользователя с таким ID')
+            await message.answer('❗ В базе нет пользователя с таким ID')
     else:
-        await message.answer('ID пользователя должен быть только из цифр')
+        await message.answer('❗ ID пользователя должен быть только из цифр')
 
 
 # Получаем текст для отправки юзеру
@@ -285,7 +292,22 @@ async def msg_handler(message: types.Message, state: FSMContext):
     data = await state.get_data()
     user_id = data.get('user_id')
     await bot.send_message(user_id, msg)
-    await message.answer('Сообщение отправленно', reply_markup=keyboard.start_menu)
+    await message.answer('✅ Сообщение отправленно', reply_markup=keyboard.start_admin)
+    await state.finish()
+
+
+# Получаем текст для рассылки всем
+@dp.message_handler(content_types='text', state=Output.message_all_user)
+async def msg_handler(message: types.Message, state: FSMContext):
+    msg = message.text
+    all_user = SQLUser().get_chat_id_all_user()
+    for x in all_user:
+        try:
+            await bot.send_message(x[-1], msg)
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            logger.info(f'{e} - {x[-1]}')
+    await bot.send_message(config.ADMIN_ID, '✅ Рассылка завершена', reply_markup=keyboard.start_admin)
     await state.finish()
 
 
@@ -332,7 +354,7 @@ async def money_handler(message: types.Message, state: FSMContext):
                                         f'в размере <b>{how_money} тенге</b>, на Логин Xbet № <b>{number}</b>',
                                    parse_mode='html')
             if SQLUser().get_bonus(message.chat.id) == 0:
-                await bot.send_message(message.chat.id, text='Пользователю надо выплатить 5000 тенге за регистрацию')
+                await bot.send_message(message.chat.id, text='❗ Пользователю надо выплатить 5000 тенге за регистрацию')
                 SQLUser().upload_bonus(message.chat.id)
             else:
                 pass
@@ -341,7 +363,7 @@ async def money_handler(message: types.Message, state: FSMContext):
         else:
             await message.answer(text='В нулях ошиблись 😁')
     else:
-        await message.answer(text='Укажите количество цифрами')
+        await message.answer(text='❗ Укажите количество цифрами')
 
 
 # проверка подписки

@@ -1,6 +1,7 @@
 from aiogram import types
 
 start_menu = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+start_admin = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
 a1 = types.KeyboardButton(text='👨🏼‍💻 Заработать')
 a2 = types.KeyboardButton(text='💳 Мой баланс')
 a3 = types.KeyboardButton(text='📄 Правила')
@@ -9,6 +10,8 @@ a5 = types.KeyboardButton(text='👤 Юзеру')
 a6 = types.KeyboardButton(text='👥 Всем')
 a7 = types.KeyboardButton(text='🚩 Изменить ссылку')
 start_menu.add(a1, a2, a3, a4)
+start_admin.add(a1, a2, a3, a4, a5, a6, a7)
+
 
 verify = types.InlineKeyboardMarkup(row_width=1)
 v1 = types.InlineKeyboardButton(text='✅ Проверить подписку', callback_data='verify')
