@@ -259,7 +259,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         await message.answer(text='❌ Действие отменено', reply_markup=keyboard.start_menu)
 
 
-# Получаем новую сслку
+# Получаем новую ссылку
 @dp.message_handler(content_types='text', state=Output.url)
 async def url_handler(message: types.Message, state: FSMContext):
     url = message.text
