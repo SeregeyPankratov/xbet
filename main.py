@@ -354,7 +354,7 @@ async def money_handler(message: types.Message, state: FSMContext):
                                         f'в размере <b>{how_money} тенге</b>, на Логин Xbet № <b>{number}</b>',
                                    parse_mode='html')
             if SQLUser().get_bonus(message.chat.id) == 0:
-                await bot.send_message(message.chat.id, text='❗ Пользователю надо выплатить 5000 тенге за регистрацию')
+                await bot.send_message(config.ADMIN_ID, text='❗ Пользователю надо выплатить 5000 тенге за регистрацию')
                 SQLUser().upload_bonus(message.chat.id)
             else:
                 pass
