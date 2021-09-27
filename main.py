@@ -28,6 +28,8 @@ class Output(StatesGroup):
     how_much = State()
     xbet = State()
     url = State()
+    user = State()
+    message = State()
 
 
 # Приветствие
@@ -48,7 +50,11 @@ async def startup(message: types.Message):
         await message.answer(text='😡 Ботам тут не место')
     # если зарегистрирован
     elif SQLUser().user_exists(chat_id):
-        await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
+        if chat_id == int(config.ADMIN_ID):
+            keyboard.start_menu.add(keyboard.a5, keyboard.a6, keyboard.a7)
+            await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
+        else:
+            await message.answer(text='🔝 Главное Меню', reply_markup=keyboard.start_menu)
     # если не зареган, и зашел по реф ссылке
     elif len(message.text) > 6 and message.text[7] == 'r':
         ref_user = message.text[8:]
@@ -65,23 +71,6 @@ async def startup(message: types.Message):
         SQLUser().add_user(chat_id, message.from_user.first_name, date, ref_user=0)
         await message.answer(text=text, disable_web_page_preview=True, parse_mode='html',
                              reply_markup=keyboard.verify)
-
-
-# изменяем url для регистрации
-@dp.message_handler(commands=['url'])
-async def change_url(message: types.Message):
-    await message.answer('Укажите новую ссылку', reply_markup=keyboard.cancel)
-    await Output.url.set()
-
-
-# Получаем новую сслку
-@dp.message_handler(content_types='text', state=Output.url)
-async def url_handler(message: types.Message, state: FSMContext):
-    url = message.text
-    file = os.path.join(config.TEMP_DIR, "bit.txt")
-    open(file, 'w', encoding='UTF-8').write(url)
-    await message.answer('Ссылка успешно изменена', reply_markup=keyboard.start_menu)
-    await state.finish()
 
 
 # Обработка инлайн кнопок
@@ -235,12 +224,69 @@ async def buttons(message: types.Message):
 💰 Ваша реферальная ссылка для приглашения: 
 {url}""", parse_mode='html')
 
+    elif msg == '👤 Юзеру':
+        await message.answer('Укажите ID пользователя, которому нужно отправить сообщение',
+                             reply_markup=keyboard.cancel)
+        await Output.user.set()
+
+    elif msg == '👥 Всем':
+        all_user = SQLUser().get_chat_id_all_user()
+        print(all_user)
+
+    elif msg == '🚩 Изменить ссылку':
+        await message.answer('Укажите новую ссылку', reply_markup=keyboard.cancel)
+        await Output.url.set()
+
     else:
         await message.answer(f"""❌ Неизвестная команда!
         
 <i>Вы отправили сообщение напрямую в чат бота, или структура меню была изменена Админом.</i>
 
 ℹ Не отправляйте прямых сообщений боту или обновите Меню, нажав /start""", parse_mode='html')
+
+
+# Отмена, убираем все состояния
+@dp.message_handler(Text(equals='🚫 Отмена', ignore_case=True), state='*')
+async def cancel_handler(message: types.Message, state: FSMContext):
+    await state.finish()
+    await message.answer('Действие отменено', reply_markup=keyboard.start_menu)
+
+
+# Получаем новую сслку
+@dp.message_handler(content_types='text', state=Output.url)
+async def url_handler(message: types.Message, state: FSMContext):
+    url = message.text
+    file = os.path.join(config.TEMP_DIR, "bit.txt")
+    open(file, 'w', encoding='UTF-8').write(url)
+    await message.answer('Ссылка успешно изменена', reply_markup=keyboard.start_menu)
+    await state.finish()
+
+
+# Получаем ID пользователя для отправки сообщения
+@dp.message_handler(content_types='text', state=Output.user)
+async def user_handler(message: types.Message, state: FSMContext):
+    user_id = message.text
+    if checkstring(user_id):
+        if SQLUser().user_exists(user_id):
+            await message.answer('Напишите сообщение для отправки пользователю', reply_markup=keyboard.cancel)
+            async with state.proxy() as data:
+                data["user_id"] = user_id
+            await Output.message.set()
+        else:
+            await message.answer('В базе нет пользователя с таким ID')
+    else:
+        await message.answer('ID пользователя должен быть только из цифр')
+
+
+# Получаем текст для отправки юзеру
+@dp.message_handler(content_types='text', state=Output.message)
+async def msg_handler(message: types.Message, state: FSMContext):
+    msg = message.text
+    data = await state.get_data()
+    user_id = data.get('user_id')
+    await bot.send_message(user_id, msg)
+    await message.answer('Сообщение отправленно', reply_markup=keyboard.start_menu)
+    await state.finish()
 
 
 def corekt_referal(chat_id):
@@ -251,13 +297,6 @@ def corekt_referal(chat_id):
         return True
     else:
         return False
-
-
-# Отмена, убираем все состояния
-@dp.message_handler(Text(equals='🚫 Отмена', ignore_case=True), state='*')
-async def cancel_handler(message: types.Message, state: FSMContext):
-    await state.finish()
-    await message.answer('Действие отменено', reply_markup=keyboard.start_menu)
 
 
 # Получаем логин Xbet

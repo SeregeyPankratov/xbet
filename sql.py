@@ -61,6 +61,11 @@ class SQLUser(SQLighter):
             select = self.cursor.execute("SELECT `id` FROM `user`").fetchall()
             return len(select)
 
+    def get_chat_id_all_user(self):
+        """Получаем Chat_id всех юзеров"""
+        with self.connection:
+            return self.cursor.execute("SELECT `chat_id` FROM `user`").fetchall()
+
     def get_user_to_day(self, date):
         """Получаем количество юзеров за день"""
         with self.connection:
