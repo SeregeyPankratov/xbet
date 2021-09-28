@@ -306,7 +306,8 @@ async def msg_handler(message: types.Message, state: FSMContext):
             await bot.send_message(x[-1], msg)
             await asyncio.sleep(0.1)
         except Exception as e:
-            logger.info(f'{e} - {x[-1]}')
+            # logger.info(f'{e} - {x[-1]}')
+            pass
     await bot.send_message(config.ADMIN_ID, '✅ Рассылка завершена', reply_markup=keyboard.start_admin)
     await state.finish()
 
