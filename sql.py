@@ -1,9 +1,11 @@
 import sqlite3
 
+import config
+
 
 class SQLighter:
 
-    def __init__(self, database='database.db'):
+    def __init__(self, database=config.TEMP_DIR/'database.db'):
         """Подключаемся к БД и сохраняем курсор соединения"""
         self.connection = sqlite3.connect(database, check_same_thread=False)
         self.cursor = self.connection.cursor()
